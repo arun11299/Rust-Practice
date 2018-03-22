@@ -1,0 +1,1 @@
+/Users/amuralid/dev_test/Rust-Practice/minigrep/target/debug/minigrep-6881721890df15c9: /Users/amuralid/dev_test/Rust-Practice/minigrep/src/lib.rs /Users/amuralid/dev_test/Rust-Practice/minigrep/src/main.rs

@@ -1,14 +1,15 @@
 use std::boxed::Box;
 use std::mem;
 use std::cell::RefCell;
+use std::cmp::PartialEq;
 
-pub struct Node<T>
+pub struct Node<T: PartialEq>
 {
     pub value : T,
     pub next  : Option<Box<Node<T>>>,
 }
 
-impl<T> Node<T> {
+impl<T> Node<T> where T : PartialEq {
     ///
     pub fn new(value : T) -> Node<T>
     {
@@ -48,15 +49,45 @@ impl<T> Node<T> {
             }
         }
     }
+    ///
+    fn remove(&mut self, prev: &mut Node<T>, value : T) -> bool
+    {
+        if self.value == value {
+            prev.next = self.next.take();
+            return true;
+        }
+        let mut next = &mut self.next;
+        prev.next = prev.next.take();
+
+        let mut prev = match prev.next {
+            Some(ref mut n) => n,
+            None => return false
+        };
+        loop {
+            let tmp = next;
+            if let Some(ref mut node) = *tmp {
+                if node.value == value {
+                    prev.next = node.next.take();
+                    return true;
+                } else {
+                    next = &mut node.next;
+                }
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
 }
 
 pub struct List<T>
+    where T : PartialEq
 {
     pub len  : usize,
     pub head : Option<Box<Node<T>>>,
 }
 
-impl<T> List<T> {
+impl<T> List<T> where T: PartialEq {
     ///
     pub fn new() -> List<T>
     {

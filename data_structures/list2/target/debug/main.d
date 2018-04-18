@@ -1,0 +1,1 @@
+/Users/amuralid/dev_test/Rust-Practice/data_structures/list2/target/debug/main.dSYM: /Users/amuralid/dev_test/Rust-Practice/data_structures/list2/src/bin/main.rs /Users/amuralid/dev_test/Rust-Practice/data_structures/list2/src/lib.rs

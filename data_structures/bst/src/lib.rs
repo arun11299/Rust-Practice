@@ -16,22 +16,28 @@ struct Raw<T>
 }
 
 impl<T> Raw<T> {
+    #[inline]
     pub fn new() -> Self {
         Raw {
             ptr : ptr::null_mut(),
         }
     }
 
+    #[inline]
     pub fn some(ptr : &mut Node<T>) -> Self {
         Raw {
             ptr : ptr,
         }
     }
 
+    #[inline]
     pub fn none() -> Self {
-        Raw { ptr : ptr::null_mut() }
+        Raw { 
+            ptr : ptr::null_mut()
+        }
     }
 
+    #[inline]
     pub fn as_ref(&self) -> Option<&Node<T>> {
         unsafe {
             if  self.ptr.is_null() {
@@ -42,6 +48,7 @@ impl<T> Raw<T> {
         }
     }
 
+    #[inline]
     pub fn as_mut(&mut self) -> Option<&mut Node<T>> {
         unsafe {
             if self.ptr.is_null() {
@@ -52,6 +59,7 @@ impl<T> Raw<T> {
         }
     }
 
+    #[inline]
     pub fn take(&mut self) -> Self {
         mem::replace(self, Raw::none())
     }
@@ -69,6 +77,12 @@ impl<T> Node<T> {
         }
     }
 
+    /// Returns `true` if the node is leaf.
+    pub fn is_leaf(&self) -> bool {
+        self.left.is_none() && self.right.is_none()
+    }
+
+    /// Print the tree in inorder traversal
     pub fn print<F : Fn(&T)>(&self, cb : &F) {
         match self.left {
             None => {},
@@ -76,6 +90,7 @@ impl<T> Node<T> {
                 lnode.print(cb);
             }
         }
+
         cb(&self.elem);
 
         match self.right {
@@ -174,6 +189,7 @@ pub struct BST<T : PartialOrd>
 
 impl<T> BST<T> where T : PartialOrd {
     /// Create new BST
+    #[inline]
     pub fn new() -> Self {
         BST {
             len : 0,
@@ -182,6 +198,7 @@ impl<T> BST<T> where T : PartialOrd {
     }
 
     /// Number of elements in BST
+    #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -198,9 +215,33 @@ impl<T> BST<T> where T : PartialOrd {
                 BST::add_node_int(rnode, elem)
             }
         }
-
         // Update the number of items in BST
         self.len += 1;
+    }
+
+    /// Remove a node from the BST
+    pub fn remove(&mut self, elem : T) {
+        match self.head {
+            None => {
+                // BST is empty, return
+                return ();
+            },
+            Some(ref mut boxed_node) => {
+                let mut r = boxed_node.as_raw();
+                if elem > boxed_node.elem {
+                    match boxed_node.right {
+                        None => { },
+                        Some(ref mut n) => {
+                            BST::remove_node_int(n.as_raw(), r, elem);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update the number of items in BST
+        // TODO: Only if the element is found
+        self.len -= 1;
     }
 
     // Recursive inorder traversal
@@ -211,6 +252,75 @@ impl<T> BST<T> where T : PartialOrd {
             Some(ref node) => {
                 node.print(&cb);
             }
+        }
+    }
+
+    /// Internal remove node impl.
+    fn remove_node_int(mut cur_node : Raw<T>, mut prev_node : Raw<T>, elem : T) {
+        /// This should not be called on the head of the tree.
+        /// So prev_node should never be null.
+        loop {
+           match cur_node.take().as_mut() {
+               None => { break; },
+               Some(mut node) => {
+                   if node.elem == elem {
+                       if node.is_leaf() {
+                           // Check which leaf to remove from the previous
+                           prev_node.as_mut().map(|int_node| {
+                               if int_node.elem > elem {
+                                   int_node.left.take();
+                               } else {
+                                   int_node.right.take();
+                               }
+                           });
+                           break;
+                       } else {
+                           prev_node.as_mut().map(|int_node| {
+                               // Check where doe sthis node lie wrt the previous node
+                               if int_node.elem > elem {
+                                   // this node is on the left side.
+                                   if node.left.is_none() {
+                                       int_node.left.take();
+                                       int_node.left = node.right.take();
+                                   }
+                                   else if (node.right.is_none()) {
+                                       int_node.left.take();
+                                       int_node.left = node.left.take();
+                                   } else {
+                                       // make the right node take this nodes place
+                                       let mut rrnode = node.right.take().map(|mut node| node.as_raw());
+                                       //iterate through to the left most node of this node
+                                       let mut tmp = Raw::some(node);
+                                       loop {
+                                           match tmp.take().as_mut() {
+                                               None => {
+                                                   tmp.take().as_mut().map(|n| n.left = node.left.take());
+                                                   break;
+                                               },
+                                               Some(ref mut n) => {
+                                                   tmp = Raw::some(n);
+                                               }
+                                           }
+                                       }
+                                       // prev_node.left = rrnode
+                                       unsafe {
+                                        match rrnode {
+                                            None => {},
+                                            Some(ref mut r) => {
+                                                int_node.left = Some(Box::from_raw(r.ptr as *mut _));
+                                            }
+                                        }
+                                       }
+                                   }
+                               } else {
+                                   // this node is on the right side
+                               }
+                           });
+                       }
+                       break;
+                   }
+               }
+           } 
         }
     }
 

@@ -13,5 +13,9 @@ fn main() {
     tree.print(|elem| println!("{}", elem));
 
     tree.remove(30);
+    println!("-------------------");
     tree.print(|elem| println!("{}", elem));
+    tree.remove(10);
+    println!("-------------------");
+    tree.print(|elem| println!("{}", elem)); 
 }

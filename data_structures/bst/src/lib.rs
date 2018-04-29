@@ -3,14 +3,14 @@ use std::cmp::PartialOrd;
 
 type Link<T> = Option<Box<Node<T>>>;
 
-struct Node<T>
+pub struct Node<T>
 {
     elem  : T,
     left  : Link<T>,
     right : Link<T>,
 }
 
-struct Raw<T>
+pub struct Raw<T>
 {
     ptr : *const Node<T>,
 }
@@ -183,8 +183,8 @@ impl<T> Node<T> {
 
 pub struct BST<T : PartialOrd>
 {
-    len : usize,
-    head : Link<T>,
+    pub len : usize,
+    pub head : Link<T>,
 }
 
 impl<T> BST<T> where T : PartialOrd {
@@ -221,33 +221,6 @@ impl<T> BST<T> where T : PartialOrd {
 
     /// Remove a node from the BST
     pub fn remove(&mut self, elem : T) {
-        match self.head {
-            None => {
-                // BST is empty, return
-                return ();
-            },
-            Some(ref mut boxed_node) => {
-                let mut r = boxed_node.as_raw();
-                if elem > boxed_node.elem {
-                    // The node is towards the right side
-                    match boxed_node.right {
-                        None => { },
-                        Some(ref mut n) => {
-                            BST::remove_node_int(n.as_raw(), r, elem);
-                        }
-                    }
-                } else {
-                    // The node is towards the left side
-                    match boxed_node.left {
-                        None => { },
-                        Some(ref mut n) => {
-                            BST::remove_node_int(n.as_raw(), r, elem);
-                        }
-                    }
-                }
-            }
-        }
-
         // Update the number of items in BST
         // TODO: Only if the element is found
         self.len -= 1;
@@ -260,6 +233,46 @@ impl<T> BST<T> where T : PartialOrd {
             },
             Some(ref node) => {
                 node.print(&cb);
+            }
+        }
+    }
+
+    // Move `the_node` to the leftmost node of `of_node`
+    pub fn move_to_leftmost(mut of_node : Raw<T>, the_node : Box<Node<T>>) {
+        let mut tmp_node = of_node.as_mut().take();
+        loop {
+            if let Some(mut lnode) = tmp_node {
+                match lnode.left {
+                    None => { 
+                        lnode.left = Some(the_node); 
+                        break;
+                    },
+                    Some(ref mut boxed_node) => {
+                        tmp_node = Some(&mut *boxed_node);
+                    }
+                }
+            } else {
+                break;
+            }
+        } // end loop
+    }
+
+    // Move `the_node` to the rightmost node of `of_node`
+    fn move_to_rightmost(mut of_node : Raw<T>, the_node : Box<Node<T>>) {
+        let mut tmp_node = of_node.as_mut().take();
+        loop {
+            if let Some(mut rnode) = tmp_node {
+                match rnode.right {
+                    None => {
+                        rnode.right = Some(the_node);
+                        break
+                    },
+                    Some(ref mut boxed_node) => {
+                        tmp_node = Some(&mut *boxed_node);
+                    }
+                }
+            } else {
+                break;
             }
         }
     }

@@ -60,6 +60,14 @@ impl<T> Raw<T> {
     }
 
     #[inline]
+    pub fn value(&self) -> &T {
+        assert!(!self.ptr.is_null());
+        unsafe {
+            &(& *(self.ptr as *mut Node<T>)).elem
+        }
+    }
+
+    #[inline]
     pub fn take(&mut self) -> Self {
         mem::replace(self, Raw::none())
     }
@@ -223,6 +231,25 @@ impl<T> BST<T> where T : PartialOrd {
     pub fn remove(&mut self, elem : T) {
         // Update the number of items in BST
         // TODO: Only if the element is found
+        let mut prev = self.head.as_mut().map(|bnode| bnode.as_raw());
+        match self.head {
+            None => return (),
+            Some(ref mut bnode) => {
+                if *bnode.value() > elem {
+                    match bnode.left {
+                        None => return (),
+                        Some(ref mut lnode) => {
+                            match prev {
+                                None => return (),
+                                Some(rawt) => {
+                                    BST::remove_node_int(lnode.as_raw(), rawt, elem);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         self.len -= 1;
     }
 
@@ -282,111 +309,92 @@ impl<T> BST<T> where T : PartialOrd {
         /// This should not be called on the head of the tree.
         /// So prev_node should never be null.
         loop {
-           match cur_node.take().as_mut() {
-               None => { break; },
-               Some(mut node) => {
-                   if node.elem == elem {
-                       if node.is_leaf() {
-                           // Check which leaf to remove from the previous
-                           prev_node.as_mut().map(|int_node| {
-                               if int_node.elem > elem {
-                                   int_node.left.take();
-                               } else {
-                                   int_node.right.take();
-                               }
-                           });
-                           break;
-                       } else {
-                           prev_node.as_mut().map(|int_node| {
-                               // Check where does this node lie wrt the previous node
-                               if int_node.elem > elem {
-                                   // this node is on the left side.
-                                   if node.left.is_none() {
-                                       int_node.left.take();
-                                       int_node.left = node.right.take();
-                                   }
-                                   else if (node.right.is_none()) {
-                                       int_node.left.take();
-                                       int_node.left = node.left.take();
-                                   } else {
-                                       // make the right node take this nodes place
-                                       let mut rrnode = node.right.take().map(|mut node| node.as_raw());
-                                       //iterate through to the left most node of this node
-                                       let mut tmp = Raw::some(node);
-                                       loop {
-                                           match tmp.take().as_mut() {
-                                               None => { break; },
-                                               Some(ref mut n) => {
-                                                   if n.is_leaf() {
-                                                       n.left = node.left.take();
-                                                       break;
-                                                   }
-                                                   match node.left {
-                                                       None => { break; },
-                                                       Some(ref mut n) => {
-                                                           tmp = n.as_raw();
-                                                       }
-                                                   }
-                                               }
-                                           }
-                                       }
-                                       // prev_node.left = rrnode
-                                       unsafe {
-                                        match rrnode {
-                                            None => {},
-                                            Some(ref mut r) => {
-                                                int_node.left = Some(Box::from_raw(r.ptr as *mut _));
-                                            }
-                                        }
-                                       }
-                                   }
-                               } else {
-                                   // this node is on the right side
-                                   if node.left.is_none() {
-                                       int_node.right.take();
-                                       int_node.right = node.right.take();
-                                   } else if (node.right.is_none()) {
-                                       int_node.right.take();
-                                       int_node.right = node.left.take();
-                                   } else {
-                                       // make the right node take this nodes place
-                                       let mut rrnode = node.right.take().map(|mut node| node.as_raw());
-                                       //iterate through to the left most of this node
-                                       let mut tmp = Raw::some(node);
-                                       loop {
-                                           match tmp.take().as_mut() {
-                                               None => { break; },
-                                               Some(ref mut n) => {
-                                                   if n.is_leaf() {
-                                                       n.left = node.left.take();
-                                                       break;
-                                                   }
-                                                   match node.left {
-                                                       None => { break; },
-                                                       Some(ref mut n) => {
-                                                           tmp = n.as_raw();
-                                                       }
-                                                   }
-                                               }
-                                           }
-                                       }
-                                       // prev_node.right = rrnode
-                                       unsafe {
-                                        match rrnode {
-                                            None => {},
-                                            Some(ref mut r) => {
-                                                int_node.right = Some(Box::from_raw(r.ptr as *mut _));
-                                            }
-                                        }
-                                       }
-                                   }
-                               }
-                           });
-                       }
-                       break;
-                   }
-               }
-           } 
+            println!("what ?");
+            if *cur_node.value() == elem {
+                // TODO
+                let mut is_left = false;
+                if *prev_node.value() > elem {
+                    is_left = true;
+                }
+                cur_node.as_mut().map(
+                    |node| {
+                        if node.left.is_none() && node.right.is_none() {
+                            println!("here");
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = None);
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = None);
+                            }
+                        } else if node.left.is_none() {
+                            // Fast path
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = node.right.take());
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = node.right.take());
+                            }
+                        } else if node.right.is_none() {
+                            // Fast path
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = node.left.take());
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = node.left.take());
+                            }
+                        } else {
+                            // Slow path
+                            if is_left {
+                                if let Some(lboxed) = node.left.take() {
+                                    if let Some(mut rboxed) = node.right.take() {
+                                        BST::move_to_leftmost(rboxed.as_raw(), lboxed);
+                                        prev_node.as_mut().map(|n| n.left = Some(rboxed));
+                                    }
+                                }
+                            } else {
+                               if let Some(lboxed) = node.left.take() {
+                                    if let Some(mut rboxed) = node.right.take() {
+                                        BST::move_to_leftmost(rboxed.as_raw(), lboxed);
+                                        prev_node.as_mut().map(|n| n.right = Some(rboxed));
+                                    }
+                                } 
+                            }
+                        }
+                    }
+                );
+                break;
+            } else {
+                let mut tmp = cur_node.take();
+                if *tmp.value() > elem {
+                    // Towards left side
+                    //cur_node.take().as_mut().map(|node| cur_node = Raw::some(node));
+                    let mut tmp_node = tmp.as_mut().take();
+                    if let Some(ref mut node) = tmp_node {
+                        let mut tmp = Raw::some(node);
+                        match node.left {
+                            None => break,
+                            Some(ref mut boxed_node) => {
+                                prev_node = tmp;
+                                cur_node = Raw::some(&mut *boxed_node);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    // Towards right side
+                   let mut tmp_node = tmp.as_mut().take();
+                    if let Some(ref mut node) = tmp_node {
+                        let mut tmp = Raw::some(node);
+                        match node.right {
+                            None => break,
+                            Some(ref mut boxed_node) => {
+                                prev_node = tmp;
+                                cur_node = Raw::some(&mut *boxed_node);
+                            }
+                        }
+                    } else {
+                        break;
+                    } 
+                }
+            }
         }
     }
 

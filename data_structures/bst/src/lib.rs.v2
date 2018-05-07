@@ -247,18 +247,6 @@ impl<T> BST<T> where T : PartialOrd {
                             }
                         }
                     }
-                } else if *bnode.value() < elem {
-                    match bnode.right {
-                        None => return (),
-                        Some (ref mut rnode) => {
-                            match prev {
-                                None => return (),
-                                Some(rawt) => {
-                                    BST::remove_node_int(rnode.as_raw(), rawt, elem);
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -321,7 +309,9 @@ impl<T> BST<T> where T : PartialOrd {
         /// This should not be called on the head of the tree.
         /// So prev_node should never be null.
         loop {
+            println!("what ?");
             if *cur_node.value() == elem {
+                // TODO
                 let mut is_left = false;
                 if *prev_node.value() > elem {
                     is_left = true;
@@ -329,47 +319,43 @@ impl<T> BST<T> where T : PartialOrd {
                 cur_node.as_mut().map(
                     |node| {
                         if node.left.is_none() && node.right.is_none() {
-                            prev_node.as_mut().map(|n| {
-                                if is_left {
-                                    n.left = None;
-                                } else {
-                                    n.right = None;
-                                }
-                            });
+                            println!("here");
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = None);
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = None);
+                            }
                         } else if node.left.is_none() {
                             // Fast path
-                            prev_node.as_mut().map(|n| {
-                                if is_left {
-                                    n.left = node.right.take();
-                                } else {
-                                    n.right = node.right.take();
-                                }
-                            });
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = node.right.take());
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = node.right.take());
+                            }
                         } else if node.right.is_none() {
                             // Fast path
-                            prev_node.as_mut().map(|n| {
-                                if is_left {
-                                    n.left = node.left.take();
-                                } else {
-                                    n.right = node.left.take();
-                                }
-                            });
+                            if is_left {
+                                prev_node.as_mut().map(|n| n.left = node.left.take());
+                            } else {
+                                prev_node.as_mut().map(|n| n.right = node.left.take());
+                            }
                         } else {
                             // Slow path
-                            if let Some(lboxed) = node.left.take() {
-                                if let Some(mut rboxed) = node.right.take() {
-                                    BST::move_to_leftmost(rboxed.as_raw(), lboxed);
-                                    prev_node.as_mut().map(
-                                        |n| {
-                                            if is_left {
-                                                n.left = Some(rboxed);
-                                            } else {
-                                                n.right = Some(rboxed);
-                                            }
-                                        }
-                                    ); // end map
-                                } // end if
-                            } // end if
+                            if is_left {
+                                if let Some(lboxed) = node.left.take() {
+                                    if let Some(mut rboxed) = node.right.take() {
+                                        BST::move_to_leftmost(rboxed.as_raw(), lboxed);
+                                        prev_node.as_mut().map(|n| n.left = Some(rboxed));
+                                    }
+                                }
+                            } else {
+                               if let Some(lboxed) = node.left.take() {
+                                    if let Some(mut rboxed) = node.right.take() {
+                                        BST::move_to_leftmost(rboxed.as_raw(), lboxed);
+                                        prev_node.as_mut().map(|n| n.right = Some(rboxed));
+                                    }
+                                } 
+                            }
                         }
                     }
                 );

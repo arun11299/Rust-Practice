@@ -40,7 +40,7 @@ impl<T> Raw<T> {
     #[inline]
     pub fn as_ref(&self) -> Option<&Node<T>> {
         unsafe {
-            if  self.ptr.is_null() {
+            if self.ptr.is_null() {
                 None
             } else {
                 Some(&*self.ptr)

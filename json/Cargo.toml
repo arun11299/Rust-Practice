@@ -1,0 +1,9 @@
+[package]
+name = "json"
+version = "0.1.0"
+authors = ["amuralid <arun11299@gmail.com>"]
+
+[dependencies]
+serde="1.x"
+serde_derive="1.x"
+serde_json="1.x"
